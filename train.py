@@ -2,7 +2,7 @@
 Author: Puffrora
 Date: 2021-11-06 14:03:13
 LastModifiedBy: Puffrora
-LastEditTime: 2021-11-07 00:20:33
+LastEditTime: 2021-11-08 12:33:28
 '''
 
 import os
@@ -11,7 +11,6 @@ import settings
 import utils
 import model
 from tqdm import tqdm
-
 
 
 # compute the content loss of current image
@@ -51,13 +50,17 @@ def get_total_loss(noise_image_features, content_image_features, style_image_fea
     return settings.CONTENT_LOSS_WEIGHT * content_loss + settings.STYLE_LOSS_WEIGHT * style_loss
 
 # train
-def train(content_image_path, style_image_path):
+def train(content_choice, style_choice, epochs, iteration_per_epoch, lr):
     """
     Preprocessing
     """
+    content_image_path = f"images/content/content{content_choice}.jpg"
+    style_image_path = f"images/style/style{style_choice}.jpg"
+
+    out_put_dir = f"output/content{content_choice}-style{style_choice}"
      # create dir to save generated images
-    if not os.path.exists(settings.OUTPUT_DIR):
-        os.mkdir(settings.OUTPUT_DIR)
+    if not os.path.exists(out_put_dir):
+        os.mkdir(out_put_dir)
 
     style_transfer_model = model.StyleTransferNNModel()
     content_image = utils.load_image(content_image_path)
@@ -66,9 +69,12 @@ def train(content_image_path, style_image_path):
     content_image_features = style_transfer_model([content_image, ])["content"]
     style_image_features = style_transfer_model([style_image, ])["style"]
 
-    optimizer = tf.keras.optimizers.Adam(settings.LR)
+    optimizer = tf.keras.optimizers.Adam(lr)
     noise_image = utils.generage_noise_image(content_image)
 
+    """
+    Training
+    """
     # use tf.function to accelerate training
     @tf.function
     def train_one_iteration():
@@ -81,11 +87,18 @@ def train(content_image_path, style_image_path):
         optimizer.apply_gradients([(grad, noise_image)])
         return total_loss
 
-    for epoch in range(settings.EPOCH):
-        with tqdm(total=settings.ITERATION_PER_EPOCH, desc=f"Epoch {epoch+1}/{settings.EPOCH}") as pbar:
-            for iteration in range(settings.ITERATION_PER_EPOCH):
+    training_losses = []
+    for epoch in range(epochs):
+        with tqdm(total=iteration_per_epoch, desc=f"Epoch {epoch+1}/{epochs}") as pbar:
+            for _ in range(iteration_per_epoch):
                 _loss = train_one_iteration()
                 pbar.set_postfix({"loss": "%.4f" % float(_loss)})
                 pbar.update(1)
-            # save images per epoch
-            utils.save_image(noise_image, f"{settings.OUTPUT_DIR}/{epoch+1}.jpg")
+            # save loss of last iteration per epoch
+            training_losses.append(_loss)
+            # save images per 20 epoch
+            if (epoch+1) % 20 == 0:
+                utils.save_image(noise_image, f"{out_put_dir}/{epoch+1}.jpg")
+
+    # loss visualization
+    utils.visualize_loss(out_put_dir, training_losses)

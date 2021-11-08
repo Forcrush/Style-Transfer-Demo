@@ -2,11 +2,12 @@
 Author: Puffrora
 Date: 2021-11-06 14:03:13
 LastModifiedBy: Puffrora
-LastEditTime: 2021-11-06 20:11:08
+LastEditTime: 2021-11-08 12:32:26
 '''
 
 import tensorflow as tf
 import numpy as np
+import matplotlib.pyplot as plt
 import settings
 
 def normalization(image):
@@ -53,3 +54,12 @@ def get_vgg19(layers):
     # mute the parameters, doesn't use it by train
     model.trainable = False
     return model
+
+def visualize_loss(out_put_dir, losses):
+    plt.plot(list(range(len(losses))), losses, color='blue')
+    plt.xlabel('Epoch(s)')
+    plt.ylabel('Loss(es)')
+    plt.title("Losses in training process")
+    plt.savefig(f'{out_put_dir}/training_loss.png')
+
+    plt.show()
